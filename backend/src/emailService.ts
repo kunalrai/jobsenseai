@@ -22,10 +22,13 @@ interface DatabaseEmail {
 function dbEmailToEmailMessage(dbEmail: DatabaseEmail): EmailMessage {
   return {
     id: dbEmail.email_id,
-    from: dbEmail.sender,
+    sender: dbEmail.sender,
+    from: dbEmail.sender, // Alias for sender
     subject: dbEmail.subject,
-    snippet: dbEmail.body,
+    body: dbEmail.body,
+    snippet: dbEmail.body, // Alias for body
     date: dbEmail.date.toISOString(),
+    isRead: dbEmail.is_read,
     category: dbEmail.category as any,
     priority: dbEmail.priority as any,
     summary: dbEmail.summary,
@@ -102,9 +105,9 @@ export async function upsertEmail(userEmail: string, email: EmailMessage) {
   const result = await pool.query(query, [
     userEmail,
     email.id,
-    email.from,
+    email.from || email.sender,
     email.subject,
-    email.snippet,
+    email.snippet || email.body,
     parsedDate,
     false, // is_read
     email.category || 'general',
@@ -165,9 +168,9 @@ export async function syncEmails(userEmail: string, emails: EmailMessage[]): Pro
       const result = await client.query(query, [
         userEmail,
         email.id,
-        email.from,
+        email.from || email.sender,
         email.subject,
-        email.snippet,
+        email.snippet || email.body,
         parsedDate,
         false, // is_read
         email.category || 'general',

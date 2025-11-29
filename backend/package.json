@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "tsc",
+    "build": "tsc && node -e \"require('fs').copyFileSync('src/schema.sql', 'dist/schema.sql')\"",
     "start": "node dist/server.js"
   },
   "dependencies": {

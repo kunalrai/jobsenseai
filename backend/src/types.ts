@@ -26,8 +26,10 @@ export interface EducationItem {
 export interface EmailMessage {
   id: string;
   sender: string;
+  from?: string; // Alias for sender (used in some contexts)
   subject: string;
   body: string;
+  snippet?: string; // Alias for body (used in some contexts)
   date: string;
   isRead: boolean;
   category?: string;
