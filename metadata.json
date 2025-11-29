@@ -1,0 +1,5 @@
+{
+  "name": "JobSense AI",
+  "description": "An intelligent job search assistant that analyzes your profile (text or resume image) to find highly relevant, active job listings using Google Search grounding.",
+  "requestFramePermissions": []
+}
