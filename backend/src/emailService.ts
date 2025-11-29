@@ -243,3 +243,16 @@ export async function markEmailAsRead(userEmail: string, emailId: string) {
   const result = await pool.query(query, [userEmail, emailId]);
   return result.rows[0] ? dbEmailToEmailMessage(result.rows[0]) : null;
 }
+
+// Get last email sync date for user
+export async function getLastEmailSync(userEmail: string): Promise<Date | null> {
+  const query = 'SELECT last_email_sync FROM users WHERE email = $1';
+  const result = await pool.query(query, [userEmail]);
+  return result.rows[0]?.last_email_sync || null;
+}
+
+// Update last email sync date for user
+export async function updateLastEmailSync(userEmail: string): Promise<void> {
+  const query = 'UPDATE users SET last_email_sync = CURRENT_TIMESTAMP WHERE email = $1';
+  await pool.query(query, [userEmail]);
+}

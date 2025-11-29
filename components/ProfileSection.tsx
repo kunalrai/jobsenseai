@@ -6,10 +6,9 @@ import { parseResume } from '../services/geminiService';
 interface ProfileSectionProps {
   profile: UserProfile;
   onChange: (profile: UserProfile) => void;
-  onNext: () => void;
 }
 
-export const ProfileSection: React.FC<ProfileSectionProps> = ({ profile, onChange, onNext }) => {
+export const ProfileSection: React.FC<ProfileSectionProps> = ({ profile, onChange }) => {
   const [newSkill, setNewSkill] = useState('');
   const [analyzing, setAnalyzing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -99,12 +98,10 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({ profile, onChang
                 {profile.location || 'Location not set'}
               </p>
             </div>
-            <button
-              onClick={onNext}
-              className="flex items-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-200 transition-all hover:bg-indigo-700 hover:shadow-indigo-300"
-            >
-              Save & Continue
-            </button>
+            <div className="flex items-center gap-2 px-4 py-2 bg-green-50 border border-green-200 rounded-lg">
+              <FileCheck className="w-5 h-5 text-green-600" />
+              <span className="text-sm font-medium text-green-700">Profile auto-saves</span>
+            </div>
           </div>
         </div>
       </div>

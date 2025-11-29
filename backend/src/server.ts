@@ -221,6 +221,23 @@ app.get('/api/emails/:email', async (req: Request, res: Response) => {
   }
 });
 
+// Get last email sync date
+app.get('/api/emails/:email/last-sync', async (req: Request, res: Response) => {
+  try {
+    const { email } = req.params;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Missing email parameter' });
+    }
+
+    const lastSync = await emailService.getLastEmailSync(email);
+    res.json({ lastSync });
+  } catch (error: any) {
+    console.error('Get last sync error:', error);
+    res.status(500).json({ error: 'Failed to get last sync date', details: error.message });
+  }
+});
+
 // Sync emails (bulk save)
 app.post('/api/emails/sync', async (req: Request, res: Response) => {
   try {
@@ -231,6 +248,10 @@ app.post('/api/emails/sync', async (req: Request, res: Response) => {
     }
 
     const savedEmails = await emailService.syncEmails(email, emails);
+
+    // Update last sync timestamp
+    await emailService.updateLastEmailSync(email);
+
     res.json({ success: true, count: savedEmails.length, emails: savedEmails });
   } catch (error: any) {
     console.error('Sync emails error:', error);

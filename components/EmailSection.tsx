@@ -371,6 +371,15 @@ export const EmailSection: React.FC<EmailSectionProps> = ({ profile }) => {
   const scanInbox = async () => {
     setIsScanning(true);
     try {
+        // Get last sync date to filter new emails only
+        let lastSyncDate: Date | null = null;
+        if (user?.email) {
+            lastSyncDate = await emailStorage.getLastEmailSync(user.email);
+            if (lastSyncDate) {
+                console.log(`📅 Last email sync: ${lastSyncDate.toLocaleString()}`);
+            }
+        }
+
         let rawEmails;
         if (isRealApi) {
             rawEmails = await fetchRealEmails();
@@ -380,15 +389,37 @@ export const EmailSection: React.FC<EmailSectionProps> = ({ profile }) => {
             await new Promise(resolve => setTimeout(resolve, 1000));
         }
 
-        // Pass to Gemini for analysis
-        const analyzed = await analyzeEmails(rawEmails);
-        setEmails(analyzed);
+        // Filter emails newer than last sync (only sync new ones)
+        let emailsToAnalyze = rawEmails;
+        if (lastSyncDate && rawEmails.length > 0) {
+            emailsToAnalyze = rawEmails.filter((email: any) => {
+                if (!email.date) return true; // Include if no date
+                const emailDate = new Date(email.date);
+                return emailDate > lastSyncDate;
+            });
 
-        // Save analyzed emails to database
+            if (emailsToAnalyze.length === 0) {
+                console.log('✅ No new emails since last sync');
+                setIsScanning(false);
+                return;
+            }
+
+            console.log(`🔄 Found ${emailsToAnalyze.length} new emails (${rawEmails.length - emailsToAnalyze.length} already synced)`);
+        }
+
+        // Pass to Gemini for analysis
+        const analyzed = await analyzeEmails(emailsToAnalyze);
+
+        // Merge with existing emails (keep old + add new)
+        const existingEmails = await emailStorage.getUserEmails(user?.email || '');
+        const mergedEmails = [...existingEmails, ...analyzed];
+        setEmails(mergedEmails);
+
+        // Save only new analyzed emails to database
         if (user?.email && analyzed.length > 0) {
             try {
                 await emailStorage.syncEmails(user.email, analyzed);
-                console.log(`✅ Synced ${analyzed.length} emails to database`);
+                console.log(`✅ Synced ${analyzed.length} new emails to database`);
             } catch (error) {
                 console.error('❌ Failed to sync emails to database:', error);
             }

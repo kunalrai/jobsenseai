@@ -82,7 +82,6 @@ function App() {
           <ProfileSection
             profile={userProfile}
             onChange={handleProfileChange}
-            onNext={() => setCurrentView(AppView.JOBS)}
           />
         );
       case AppView.JOBS:

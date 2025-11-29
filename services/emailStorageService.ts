@@ -150,3 +150,25 @@ export const deleteAllEmails = async (email: string) => {
     throw error;
   }
 };
+
+// Get last email sync date
+export const getLastEmailSync = async (email: string): Promise<Date | null> => {
+  try {
+    const response = await fetch(`${API_URL}/api/emails/${encodeURIComponent(email)}/last-sync`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to get last sync date');
+    }
+
+    const data = await response.json();
+    return data.lastSync ? new Date(data.lastSync) : null;
+  } catch (error) {
+    console.error('Get last sync error:', error);
+    return null;
+  }
+};
