@@ -66,6 +66,47 @@ async function runMigrations() {
       );
       console.log(`✅ Applied migration: ${migration2}`);
     }
+
+    // Migration 3: Create gmail_settings table
+    const migration3 = 'create_gmail_settings_table';
+    const migration3Exists = await pool.query(
+      'SELECT 1 FROM schema_migrations WHERE migration_name = $1',
+      [migration3]
+    );
+
+    if (migration3Exists.rows.length === 0) {
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS gmail_settings (
+          id SERIAL PRIMARY KEY,
+          user_email VARCHAR(255) UNIQUE NOT NULL REFERENCES users(email) ON DELETE CASCADE,
+          is_connected BOOLEAN DEFAULT false,
+          connected_gmail VARCHAR(255),
+          access_token TEXT,
+          refresh_token TEXT,
+          token_expiry TIMESTAMP,
+          last_sync TIMESTAMP,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      await pool.query('CREATE INDEX IF NOT EXISTS idx_gmail_settings_user_email ON gmail_settings(user_email)');
+
+      // Add trigger for auto-updating updated_at
+      await pool.query(`
+        DROP TRIGGER IF EXISTS update_gmail_settings_updated_at ON gmail_settings;
+        CREATE TRIGGER update_gmail_settings_updated_at
+          BEFORE UPDATE ON gmail_settings
+          FOR EACH ROW
+          EXECUTE FUNCTION update_updated_at_column();
+      `);
+
+      await pool.query(
+        'INSERT INTO schema_migrations (migration_name) VALUES ($1)',
+        [migration3]
+      );
+      console.log(`✅ Applied migration: ${migration3}`);
+    }
   } catch (error) {
     console.error('❌ Failed to run migrations:', error);
     throw error;

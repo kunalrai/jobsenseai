@@ -5,6 +5,7 @@ import ReactMarkdown from 'react-markdown';
 import { UserProfile, EmailMessage } from '../types';
 import { generateEmail, analyzeEmails, generateSmartReply } from '../services/geminiService';
 import * as emailStorage from '../services/emailStorageService';
+import * as gmailSettings from '../services/gmailSettingsService';
 import { useAuth } from '../context/AuthContext';
 
 // --- CONFIGURATION FOR REAL GMAIL API ---
@@ -170,21 +171,51 @@ export const EmailSection: React.FC<EmailSectionProps> = ({ profile }) => {
     };
   }, []);
 
-  // --- CHECK FOR STORED TOKEN ON MOUNT ---
+  // --- LOAD GMAIL SETTINGS FROM DATABASE ON MOUNT ---
   useEffect(() => {
-    const gapi = (window as any).gapi;
-    if (gapi && gapi.client) {
-      const token = gapi.client.getToken();
-      if (token) {
-        // Token exists, restore session
-        setIsConnected(true);
-        setIsRealApi(true);
-        const storedEmail = localStorage.getItem('gmail_user_email');
-        setUserEmail(storedEmail || 'Connected User');
-        console.log('Gmail session restored from token');
+    const loadGmailSettings = async () => {
+      if (!user?.email) return;
+
+      try {
+        const settings = await gmailSettings.getGmailSettings(user.email);
+
+        if (settings && settings.is_connected) {
+          // For Real API mode
+          if (settings.access_token && gapiInited) {
+            // Check if token is expired
+            const isExpired = settings.token_expiry ? new Date(settings.token_expiry) < new Date() : false;
+
+            if (!isExpired) {
+              // Restore session with saved token
+              const gapi = (window as any).gapi;
+              if (gapi && gapi.client) {
+                gapi.client.setToken({
+                  access_token: settings.access_token,
+                });
+                setIsConnected(true);
+                setIsRealApi(true);
+                setUserEmail(settings.connected_gmail || 'Connected User');
+                console.log('✅ Gmail session restored from database (Real API)');
+              }
+            } else {
+              console.log('⚠️ Stored Gmail token expired, please reconnect');
+            }
+          }
+          // For Mock mode - restore connection state even without gapi
+          else if (settings.connected_gmail && !settings.access_token) {
+            setIsConnected(true);
+            setIsRealApi(false);
+            setUserEmail(settings.connected_gmail);
+            console.log('✅ Gmail session restored from database (Mock Mode)');
+          }
+        }
+      } catch (error) {
+        console.error('❌ Failed to load Gmail settings:', error);
       }
-    }
-  }, [gapiInited]);
+    };
+
+    loadGmailSettings();
+  }, [gapiInited, user]);
 
   // --- LOAD EMAILS FROM DATABASE ON MOUNT ---
   useEffect(() => {
@@ -207,9 +238,25 @@ export const EmailSection: React.FC<EmailSectionProps> = ({ profile }) => {
 
   // --- MOCK LISTENER ---
   useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
+    const handleMessage = async (event: MessageEvent) => {
       if (event.data?.type === 'GMAIL_CONNECTED' && event.data?.email) {
         setIsScanning(true);
+
+        // Save mock Gmail connection to database
+        if (user?.email) {
+          try {
+            await gmailSettings.saveGmailSettings({
+              user_email: user.email,
+              is_connected: true,
+              connected_gmail: event.data.email,
+              // No tokens for mock mode
+            });
+            console.log('✅ Mock Gmail settings saved to database');
+          } catch (error) {
+            console.error('❌ Failed to save mock Gmail settings:', error);
+          }
+        }
+
         setTimeout(() => {
             setIsConnected(true);
             setUserEmail(event.data.email);
@@ -221,7 +268,7 @@ export const EmailSection: React.FC<EmailSectionProps> = ({ profile }) => {
     };
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, []);
+  }, [user]);
 
   // Auto-scan
   useEffect(() => {
@@ -255,15 +302,32 @@ export const EmailSection: React.FC<EmailSectionProps> = ({ profile }) => {
         setIsConnected(true);
         setIsRealApi(true);
 
-        // Try to get user email from Google
+        // Try to get user email and save tokens to database
         try {
             const gapi = (window as any).gapi;
             const userInfo = await gapi.client.request({
                 path: 'https://www.googleapis.com/oauth2/v2/userinfo'
             });
-            const email = userInfo.result.email;
-            setUserEmail(email);
-            localStorage.setItem('gmail_user_email', email);
+            const gmailEmail = userInfo.result.email;
+            setUserEmail(gmailEmail);
+            localStorage.setItem('gmail_user_email', gmailEmail);
+
+            // Save OAuth tokens to database
+            if (user?.email) {
+                const token = gapi.client.getToken();
+                const expiryDate = new Date();
+                expiryDate.setSeconds(expiryDate.getSeconds() + (resp.expires_in || 3600));
+
+                await gmailSettings.saveGmailSettings({
+                    user_email: user.email,
+                    is_connected: true,
+                    connected_gmail: gmailEmail,
+                    access_token: token.access_token,
+                    refresh_token: resp.refresh_token, // May be undefined for incremental auth
+                    token_expiry: expiryDate,
+                });
+                console.log('✅ Gmail settings saved to database');
+            }
         } catch (e) {
             console.warn('Could not fetch user email, using fallback');
             setUserEmail("Connected User");
@@ -281,7 +345,7 @@ export const EmailSection: React.FC<EmailSectionProps> = ({ profile }) => {
     }
   };
 
-  const handleDisconnect = () => {
+  const handleDisconnect = async () => {
       setIsConnected(false);
       setUserEmail(null);
       setEmails([]);
@@ -296,6 +360,16 @@ export const EmailSection: React.FC<EmailSectionProps> = ({ profile }) => {
         if (token !== null) {
             (window as any).google.accounts.oauth2.revoke(token.access_token);
             gapi.client.setToken('');
+        }
+      }
+
+      // Delete Gmail settings from database
+      if (user?.email) {
+        try {
+          await gmailSettings.disconnectGmail(user.email);
+          console.log('✅ Gmail settings removed from database');
+        } catch (error) {
+          console.error('❌ Failed to remove Gmail settings:', error);
         }
       }
   };

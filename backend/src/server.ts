@@ -6,6 +6,7 @@ import * as geminiService from './geminiService.js';
 import * as profileService from './profileService.js';
 import * as emailService from './emailService.js';
 import * as aiUsageService from './aiUsageService.js';
+import * as gmailSettingsService from './gmailSettingsService.js';
 import { initializeDatabase } from './initDb.js';
 
 dotenv.config();
@@ -373,6 +374,59 @@ app.get('/api/usage/:email', async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error('Get usage stats error:', error);
     res.status(500).json({ error: 'Failed to get usage stats', details: error.message });
+  }
+});
+
+// Gmail Settings API Endpoints
+
+// Get Gmail settings for user
+app.get('/api/gmail-settings/:email', async (req: Request, res: Response) => {
+  try {
+    const { email } = req.params;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Missing email parameter' });
+    }
+
+    const settings = await gmailSettingsService.getGmailSettings(email);
+    res.json(settings);
+  } catch (error: any) {
+    console.error('Get Gmail settings error:', error);
+    res.status(500).json({ error: 'Failed to get Gmail settings', details: error.message });
+  }
+});
+
+// Save or update Gmail settings
+app.post('/api/gmail-settings', async (req: Request, res: Response) => {
+  try {
+    const settings = req.body;
+
+    if (!settings.user_email) {
+      return res.status(400).json({ error: 'Missing user_email' });
+    }
+
+    const savedSettings = await gmailSettingsService.upsertGmailSettings(settings);
+    res.json(savedSettings);
+  } catch (error: any) {
+    console.error('Save Gmail settings error:', error);
+    res.status(500).json({ error: 'Failed to save Gmail settings', details: error.message });
+  }
+});
+
+// Disconnect Gmail
+app.delete('/api/gmail-settings/:email', async (req: Request, res: Response) => {
+  try {
+    const { email } = req.params;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Missing email parameter' });
+    }
+
+    await gmailSettingsService.disconnectGmail(email);
+    res.json({ success: true, message: 'Gmail disconnected' });
+  } catch (error: any) {
+    console.error('Disconnect Gmail error:', error);
+    res.status(500).json({ error: 'Failed to disconnect Gmail', details: error.message });
   }
 });
 
