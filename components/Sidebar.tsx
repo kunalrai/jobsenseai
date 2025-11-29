@@ -2,6 +2,7 @@
 import React from 'react';
 import { Briefcase, User, Mail, FileText, X, LogOut } from 'lucide-react';
 import { AppView } from '../types';
+import { useAuth } from '../context/AuthContext';
 
 interface SidebarProps {
   currentView: AppView;
@@ -11,6 +12,7 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, isOpen, onClose }) => {
+  const { user, logout } = useAuth();
   const navItems = [
     { id: AppView.PROFILE, label: 'Profile', icon: User },
     { id: AppView.JOBS, label: 'Find Jobs', icon: Briefcase },
@@ -78,7 +80,33 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, isOpe
           </nav>
 
           {/* Bottom Footer Area */}
-          <div className="border-t border-slate-800 p-4">
+          <div className="border-t border-slate-800 p-4 space-y-4">
+            {/* User Info */}
+            {user && (
+              <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-slate-800/50">
+                <img
+                  src={user.picture}
+                  alt={user.name}
+                  className="w-10 h-10 rounded-full border-2 border-slate-700"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-white truncate">{user.name}</p>
+                  <p className="text-xs text-slate-400 truncate">{user.email}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Logout Button */}
+            <button
+              type="button"
+              onClick={logout}
+              className="group flex w-full items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-slate-400 hover:bg-red-500/10 hover:text-red-400 transition-all"
+            >
+              <LogOut size={20} className="text-slate-500 group-hover:text-red-400" />
+              Logout
+            </button>
+
+            {/* Powered By */}
             <div className="rounded-xl bg-slate-800/50 p-4">
                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Powered By</p>
                <div className="flex items-center gap-2 text-indigo-400">

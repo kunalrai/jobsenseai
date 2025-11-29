@@ -4,6 +4,8 @@ import { Mail, Send, Loader2, Copy, Check, Inbox, Bot, RefreshCw, Paperclip, Tra
 import ReactMarkdown from 'react-markdown';
 import { UserProfile, EmailMessage } from '../types';
 import { generateEmail, analyzeEmails, generateSmartReply } from '../services/geminiService';
+import * as emailStorage from '../services/emailStorageService';
+import { useAuth } from '../context/AuthContext';
 
 // --- CONFIGURATION FOR REAL GMAIL API ---
 // To use real Gmail, create a project in Google Cloud Console, enable Gmail API,
@@ -91,8 +93,9 @@ const getMockOAuthHtml = () => `
 `;
 
 export const EmailSection: React.FC<EmailSectionProps> = ({ profile }) => {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'MANUAL' | 'INBOX'>('INBOX');
-  
+
   // Manual Mode State
   const [jobDescription, setJobDescription] = useState('');
   const [generatedContent, setGeneratedContent] = useState('');
@@ -182,6 +185,25 @@ export const EmailSection: React.FC<EmailSectionProps> = ({ profile }) => {
       }
     }
   }, [gapiInited]);
+
+  // --- LOAD EMAILS FROM DATABASE ON MOUNT ---
+  useEffect(() => {
+    const loadEmailsFromDatabase = async () => {
+      if (user?.email) {
+        try {
+          const savedEmails = await emailStorage.getUserEmails(user.email);
+          if (savedEmails.length > 0) {
+            setEmails(savedEmails);
+            console.log(`✅ Loaded ${savedEmails.length} emails from database`);
+          }
+        } catch (error) {
+          console.error('❌ Failed to load emails from database:', error);
+        }
+      }
+    };
+
+    loadEmailsFromDatabase();
+  }, [user]);
 
   // --- MOCK LISTENER ---
   useEffect(() => {
@@ -357,10 +379,20 @@ export const EmailSection: React.FC<EmailSectionProps> = ({ profile }) => {
             // Add slight delay for mock feel
             await new Promise(resolve => setTimeout(resolve, 1000));
         }
-        
+
         // Pass to Gemini for analysis
         const analyzed = await analyzeEmails(rawEmails);
         setEmails(analyzed);
+
+        // Save analyzed emails to database
+        if (user?.email && analyzed.length > 0) {
+            try {
+                await emailStorage.syncEmails(user.email, analyzed);
+                console.log(`✅ Synced ${analyzed.length} emails to database`);
+            } catch (error) {
+                console.error('❌ Failed to sync emails to database:', error);
+            }
+        }
     } catch (e) {
         console.error(e);
     } finally {
