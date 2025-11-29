@@ -34,6 +34,11 @@ export async function getUserProfile(email: string): Promise<UserProfile | null>
       skills,
       experience,
       education,
+      contact_email as "email",
+      phone,
+      linkedin,
+      github,
+      portfolio,
       resume_data as "resumeData",
       resume_mime_type as "resumeMimeType",
       resume_name as "resumeName"
@@ -61,11 +66,16 @@ export async function upsertUserProfile(email: string, profile: UserProfile) {
       skills,
       experience,
       education,
+      contact_email,
+      phone,
+      linkedin,
+      github,
+      portfolio,
       resume_data,
       resume_mime_type,
       resume_name
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
     ON CONFLICT (user_email)
     DO UPDATE SET
       name = EXCLUDED.name,
@@ -74,6 +84,11 @@ export async function upsertUserProfile(email: string, profile: UserProfile) {
       skills = EXCLUDED.skills,
       experience = EXCLUDED.experience,
       education = EXCLUDED.education,
+      contact_email = EXCLUDED.contact_email,
+      phone = EXCLUDED.phone,
+      linkedin = EXCLUDED.linkedin,
+      github = EXCLUDED.github,
+      portfolio = EXCLUDED.portfolio,
       resume_data = EXCLUDED.resume_data,
       resume_mime_type = EXCLUDED.resume_mime_type,
       resume_name = EXCLUDED.resume_name,
@@ -89,6 +104,11 @@ export async function upsertUserProfile(email: string, profile: UserProfile) {
     JSON.stringify(profile.skills || []),
     JSON.stringify(profile.experience || []),
     JSON.stringify(profile.education || []),
+    profile.email || null,
+    profile.phone || null,
+    profile.linkedin || null,
+    profile.github || null,
+    profile.portfolio || null,
     profile.resumeData || null,
     profile.resumeMimeType || null,
     profile.resumeName || null,

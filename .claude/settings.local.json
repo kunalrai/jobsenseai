@@ -3,7 +3,10 @@
     "allow": [
       "Bash(npm run dev:*)",
       "Bash(git check-ignore:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(psql:*)",
+      "Bash(cat:*)",
+      "Bash(node:*)"
     ],
     "deny": [],
     "ask": []

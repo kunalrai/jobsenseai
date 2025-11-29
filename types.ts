@@ -19,7 +19,14 @@ export interface UserProfile {
   skills?: string[];
   experience?: ExperienceItem[];
   education?: EducationItem[];
-  
+
+  // Contact Details
+  email?: string;
+  phone?: string;
+  linkedin?: string;
+  github?: string;
+  portfolio?: string;
+
   resumeData?: string; // Base64 string
   resumeMimeType?: string;
   resumeName?: string;

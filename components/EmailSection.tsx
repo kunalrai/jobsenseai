@@ -474,6 +474,10 @@ export const EmailSection: React.FC<EmailSectionProps> = ({ profile }) => {
 
             if (emailsToAnalyze.length === 0) {
                 console.log('✅ No new emails since last sync');
+                // Load and display existing emails from database
+                const existingEmails = await emailStorage.getUserEmails(user?.email || '');
+                setEmails(existingEmails);
+                console.log(`📧 Displaying ${existingEmails.length} existing emails from database`);
                 setIsScanning(false);
                 return;
             }
@@ -494,6 +498,8 @@ export const EmailSection: React.FC<EmailSectionProps> = ({ profile }) => {
             try {
                 await emailStorage.syncEmails(user.email, analyzed);
                 console.log(`✅ Synced ${analyzed.length} new emails to database`);
+                // Update last sync time
+                await emailStorage.updateLastEmailSync(user.email);
             } catch (error) {
                 console.error('❌ Failed to sync emails to database:', error);
             }

@@ -172,3 +172,22 @@ export const getLastEmailSync = async (email: string): Promise<Date | null> => {
     return null;
   }
 };
+
+// Update last email sync date
+export const updateLastEmailSync = async (email: string): Promise<void> => {
+  try {
+    const response = await fetch(`${API_URL}/api/emails/${encodeURIComponent(email)}/last-sync`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to update last sync date');
+    }
+  } catch (error) {
+    console.error('Update last sync error:', error);
+    throw error;
+  }
+};

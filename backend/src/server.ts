@@ -240,6 +240,23 @@ app.get('/api/emails/:email/last-sync', async (req: Request, res: Response) => {
   }
 });
 
+// Update last email sync date
+app.put('/api/emails/:email/last-sync', async (req: Request, res: Response) => {
+  try {
+    const { email } = req.params;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Missing email parameter' });
+    }
+
+    await emailService.updateLastEmailSync(email);
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error('Update last sync error:', error);
+    res.status(500).json({ error: 'Failed to update last sync date', details: error.message });
+  }
+});
+
 // Sync emails (bulk save)
 app.post('/api/emails/sync', async (req: Request, res: Response) => {
   try {

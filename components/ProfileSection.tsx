@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { User, Briefcase, FileText, Plus, X, Sparkles, Loader2, Upload, FileCheck, Eye, GraduationCap, Building2, Calendar, FolderGit2, Link } from 'lucide-react';
+import { User, Briefcase, FileText, Plus, X, Sparkles, Loader2, Upload, FileCheck, Eye, GraduationCap, Building2, Calendar, FolderGit2, Link, Mail, Phone, Linkedin, Github, Globe } from 'lucide-react';
 import { UserProfile } from '../types';
 import { parseResume } from '../services/geminiService';
 
@@ -243,6 +243,85 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({ profile, onChang
                   value={profile.location || ''}
                   onChange={(e) => onChange({ ...profile, location: e.target.value })}
                   placeholder="New York, Remote"
+                  className="w-full rounded-lg border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium focus:border-indigo-500 focus:ring-indigo-500"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Contact Details Section */}
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <h3 className="font-bold text-slate-900 mb-4 flex items-center">
+              <Mail className="w-4 h-4 text-slate-400 mr-2" />
+              Contact Details
+            </h3>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-xs font-semibold uppercase text-slate-500 flex items-center">
+                  <Mail className="w-3 h-3 mr-1.5 text-slate-400" />
+                  Email
+                </label>
+                <input
+                  type="email"
+                  value={profile.email || ''}
+                  onChange={(e) => onChange({ ...profile, email: e.target.value })}
+                  placeholder="john.doe@example.com"
+                  className="w-full rounded-lg border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium focus:border-indigo-500 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-semibold uppercase text-slate-500 flex items-center">
+                  <Phone className="w-3 h-3 mr-1.5 text-slate-400" />
+                  Phone
+                </label>
+                <input
+                  type="tel"
+                  value={profile.phone || ''}
+                  onChange={(e) => onChange({ ...profile, phone: e.target.value })}
+                  placeholder="+1 (555) 123-4567"
+                  className="w-full rounded-lg border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium focus:border-indigo-500 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-semibold uppercase text-slate-500 flex items-center">
+                  <Linkedin className="w-3 h-3 mr-1.5 text-slate-400" />
+                  LinkedIn
+                </label>
+                <input
+                  type="url"
+                  value={profile.linkedin || ''}
+                  onChange={(e) => onChange({ ...profile, linkedin: e.target.value })}
+                  placeholder="linkedin.com/in/johndoe"
+                  className="w-full rounded-lg border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium focus:border-indigo-500 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-semibold uppercase text-slate-500 flex items-center">
+                  <Github className="w-3 h-3 mr-1.5 text-slate-400" />
+                  GitHub
+                </label>
+                <input
+                  type="url"
+                  value={profile.github || ''}
+                  onChange={(e) => onChange({ ...profile, github: e.target.value })}
+                  placeholder="github.com/johndoe"
+                  className="w-full rounded-lg border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium focus:border-indigo-500 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-semibold uppercase text-slate-500 flex items-center">
+                  <Globe className="w-3 h-3 mr-1.5 text-slate-400" />
+                  Portfolio / Website
+                </label>
+                <input
+                  type="url"
+                  value={profile.portfolio || ''}
+                  onChange={(e) => onChange({ ...profile, portfolio: e.target.value })}
+                  placeholder="johndoe.com"
                   className="w-full rounded-lg border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium focus:border-indigo-500 focus:ring-indigo-500"
                 />
               </div>
