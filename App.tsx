@@ -13,7 +13,11 @@ import * as profileService from './services/profileService';
 
 function App() {
   const { isAuthenticated, user, login } = useAuth();
-  const [currentView, setCurrentView] = useState<AppView>(AppView.PROFILE);
+  const [currentView, setCurrentView] = useState<AppView>(() => {
+    // Restore last view from localStorage, default to PROFILE
+    const savedView = localStorage.getItem('currentView');
+    return (savedView as AppView) || AppView.PROFILE;
+  });
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile>({
@@ -24,6 +28,11 @@ function App() {
     experience: [],
     education: []
   });
+
+  // Save current view to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('currentView', currentView);
+  }, [currentView]);
 
   // Load user profile from database when authenticated
   useEffect(() => {
