@@ -5,6 +5,7 @@ import pool from './db.js';
 import * as geminiService from './geminiService.js';
 import * as profileService from './profileService.js';
 import * as emailService from './emailService.js';
+import * as aiUsageService from './aiUsageService.js';
 import { initializeDatabase } from './initDb.js';
 
 dotenv.config();
@@ -40,13 +41,13 @@ app.get('/api/db/test', async (req: Request, res: Response) => {
 // Parse Resume
 app.post('/api/gemini/parse-resume', async (req: Request, res: Response) => {
   try {
-    const { base64Data, mimeType } = req.body;
+    const { base64Data, mimeType, userEmail } = req.body;
 
     if (!base64Data || !mimeType) {
       return res.status(400).json({ error: 'Missing base64Data or mimeType' });
     }
 
-    const result = await geminiService.parseResume(base64Data, mimeType);
+    const result = await geminiService.parseResume(base64Data, mimeType, userEmail);
     res.json(result);
   } catch (error: any) {
     console.error('Parse resume error:', error);
@@ -57,13 +58,13 @@ app.post('/api/gemini/parse-resume', async (req: Request, res: Response) => {
 // Search Jobs
 app.post('/api/gemini/search-jobs', async (req: Request, res: Response) => {
   try {
-    const { profile } = req.body;
+    const { profile, userEmail } = req.body;
 
     if (!profile) {
       return res.status(400).json({ error: 'Missing profile data' });
     }
 
-    const result = await geminiService.searchJobs(profile);
+    const result = await geminiService.searchJobs(profile, userEmail);
     res.json(result);
   } catch (error: any) {
     console.error('Search jobs error:', error);
@@ -74,13 +75,13 @@ app.post('/api/gemini/search-jobs', async (req: Request, res: Response) => {
 // Generate Email
 app.post('/api/gemini/generate-email', async (req: Request, res: Response) => {
   try {
-    const { profile, jobDescription, type } = req.body;
+    const { profile, jobDescription, type, userEmail } = req.body;
 
     if (!profile || !jobDescription || !type) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    const result = await geminiService.generateEmail(profile, jobDescription, type);
+    const result = await geminiService.generateEmail(profile, jobDescription, type, userEmail);
     res.json({ text: result });
   } catch (error: any) {
     console.error('Generate email error:', error);
@@ -91,13 +92,13 @@ app.post('/api/gemini/generate-email', async (req: Request, res: Response) => {
 // Analyze Emails
 app.post('/api/gemini/analyze-emails', async (req: Request, res: Response) => {
   try {
-    const { emails } = req.body;
+    const { emails, userEmail } = req.body;
 
     if (!emails || !Array.isArray(emails)) {
       return res.status(400).json({ error: 'Invalid emails data' });
     }
 
-    const result = await geminiService.analyzeEmails(emails);
+    const result = await geminiService.analyzeEmails(emails, userEmail);
     res.json(result);
   } catch (error: any) {
     console.error('Analyze emails error:', error);
@@ -108,13 +109,13 @@ app.post('/api/gemini/analyze-emails', async (req: Request, res: Response) => {
 // Generate Smart Reply
 app.post('/api/gemini/smart-reply', async (req: Request, res: Response) => {
   try {
-    const { email, profile } = req.body;
+    const { email, profile, userEmail } = req.body;
 
     if (!email || !profile) {
       return res.status(400).json({ error: 'Missing email or profile data' });
     }
 
-    const result = await geminiService.generateSmartReply(email, profile);
+    const result = await geminiService.generateSmartReply(email, profile, userEmail);
     res.json({ text: result });
   } catch (error: any) {
     console.error('Smart reply error:', error);
@@ -351,6 +352,27 @@ app.delete('/api/emails/:email', async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error('Delete all emails error:', error);
     res.status(500).json({ error: 'Failed to delete all emails', details: error.message });
+  }
+});
+
+// AI Usage API Endpoints
+
+// Get user's AI usage statistics
+app.get('/api/usage/:email', async (req: Request, res: Response) => {
+  try {
+    const { email } = req.params;
+    const { days } = req.query;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Missing email parameter' });
+    }
+
+    const daysNum = days ? parseInt(days as string) : 30;
+    const stats = await aiUsageService.getUserUsageStats(email, daysNum);
+    res.json(stats);
+  } catch (error: any) {
+    console.error('Get usage stats error:', error);
+    res.status(500).json({ error: 'Failed to get usage stats', details: error.message });
   }
 });
 

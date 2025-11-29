@@ -1,6 +1,7 @@
 import { GoogleGenAI, GenerateContentResponse, Type } from '@google/genai';
 import dotenv from 'dotenv';
 import { UserProfile, SearchResult, EmailMessage } from './types.js';
+import * as aiUsageService from './aiUsageService.js';
 
 dotenv.config();
 
@@ -14,7 +15,26 @@ const getClient = () => {
   return new GoogleGenAI({ apiKey });
 };
 
-export const parseResume = async (base64Data: string, mimeType: string): Promise<Partial<UserProfile>> => {
+// Helper function to track usage
+const trackUsage = async (userEmail: string, operationType: string, response: any, success: boolean = true, errorMessage?: string) => {
+  try {
+    const usage = response?.usageMetadata || {};
+    await aiUsageService.trackAIUsage({
+      user_email: userEmail,
+      operation_type: operationType,
+      input_tokens: usage.promptTokenCount || 0,
+      output_tokens: usage.candidatesTokenCount || 0,
+      total_tokens: usage.totalTokenCount || 0,
+      model_used: GEMINI_MODEL,
+      success,
+      error_message: errorMessage,
+    });
+  } catch (error) {
+    console.error('Failed to track AI usage:', error);
+  }
+};
+
+export const parseResume = async (base64Data: string, mimeType: string, userEmail?: string): Promise<Partial<UserProfile>> => {
   const ai = getClient();
   const cleanBase64 = base64Data.includes(',') ? base64Data.split(',')[1] : base64Data;
 
@@ -64,16 +84,25 @@ export const parseResume = async (base64Data: string, mimeType: string): Promise
       },
     });
 
+    // Track usage
+    if (userEmail) {
+      await trackUsage(userEmail, 'parse_resume', response);
+    }
+
     const text = response.text;
     if (!text) return {};
     return JSON.parse(text) as Partial<UserProfile>;
-  } catch (error) {
+  } catch (error: any) {
+    // Track failed attempt
+    if (userEmail) {
+      await trackUsage(userEmail, 'parse_resume', null, false, error.message);
+    }
     console.error("Parse Resume Error:", error);
     throw error;
   }
 };
 
-export const searchJobs = async (profile: UserProfile): Promise<SearchResult> => {
+export const searchJobs = async (profile: UserProfile, userEmail?: string): Promise<SearchResult> => {
   const ai = getClient();
   const { aboutMe, location, skills, experience, name } = profile;
 
@@ -95,17 +124,26 @@ export const searchJobs = async (profile: UserProfile): Promise<SearchResult> =>
       config: { tools: [{ googleSearch: {} }], temperature: 0.7 },
     });
 
+    // Track usage
+    if (userEmail) {
+      await trackUsage(userEmail, 'search_jobs', response);
+    }
+
     return {
       text: response.text || "No results found.",
       groundingMetadata: response.candidates?.[0]?.groundingMetadata,
     };
-  } catch (error) {
+  } catch (error: any) {
+    // Track failed attempt
+    if (userEmail) {
+      await trackUsage(userEmail, 'search_jobs', null, false, error.message);
+    }
     console.error("Gemini Search Error:", error);
     throw error;
   }
 };
 
-export const generateEmail = async (profile: UserProfile, jobDescription: string, type: 'cover_letter' | 'cold_email'): Promise<string> => {
+export const generateEmail = async (profile: UserProfile, jobDescription: string, type: 'cover_letter' | 'cold_email', userEmail?: string): Promise<string> => {
   const ai = getClient();
   const { aboutMe, skills, experience, name } = profile;
 
@@ -125,14 +163,24 @@ export const generateEmail = async (profile: UserProfile, jobDescription: string
       contents: { parts: [{ text: prompt }] },
       config: { temperature: 0.7 },
     });
+
+    // Track usage
+    if (userEmail) {
+      await trackUsage(userEmail, 'generate_email', response);
+    }
+
     return response.text || "Could not generate email.";
-  } catch (error) {
+  } catch (error: any) {
+    // Track failed attempt
+    if (userEmail) {
+      await trackUsage(userEmail, 'generate_email', null, false, error.message);
+    }
     console.error("Gemini Email Gen Error:", error);
     throw error;
   }
 };
 
-export const analyzeEmails = async (emails: Partial<EmailMessage>[]): Promise<EmailMessage[]> => {
+export const analyzeEmails = async (emails: Partial<EmailMessage>[], userEmail?: string): Promise<EmailMessage[]> => {
   const ai = getClient();
 
   const prompt = `Analyze these emails and categorize them:\n${JSON.stringify(emails)}`;
@@ -159,18 +207,27 @@ export const analyzeEmails = async (emails: Partial<EmailMessage>[]): Promise<Em
       }
     });
 
+    // Track usage
+    if (userEmail) {
+      await trackUsage(userEmail, 'analyze_emails', response);
+    }
+
     const analyzedData = JSON.parse(response.text || "[]");
     return emails.map(email => {
       const analysis = analyzedData.find((a: any) => a.id === email.id);
       return { ...email, ...analysis } as EmailMessage;
     });
-  } catch (error) {
+  } catch (error: any) {
+    // Track failed attempt
+    if (userEmail) {
+      await trackUsage(userEmail, 'analyze_emails', null, false, error.message);
+    }
     console.error("Email Analysis Error:", error);
     return emails as EmailMessage[];
   }
 };
 
-export const generateSmartReply = async (email: EmailMessage, profile: UserProfile): Promise<string> => {
+export const generateSmartReply = async (email: EmailMessage, profile: UserProfile, userEmail?: string): Promise<string> => {
   const ai = getClient();
   const { name, experience } = profile;
 
@@ -181,8 +238,18 @@ export const generateSmartReply = async (email: EmailMessage, profile: UserProfi
       model: GEMINI_MODEL,
       contents: { parts: [{ text: prompt }] },
     });
+
+    // Track usage
+    if (userEmail) {
+      await trackUsage(userEmail, 'smart_reply', response);
+    }
+
     return response.text || "Draft could not be generated.";
-  } catch (error) {
+  } catch (error: any) {
+    // Track failed attempt
+    if (userEmail) {
+      await trackUsage(userEmail, 'smart_reply', null, false, error.message);
+    }
     console.error("Smart Reply Error:", error);
     throw error;
   }

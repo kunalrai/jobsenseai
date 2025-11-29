@@ -91,6 +91,30 @@ CREATE TRIGGER update_user_emails_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
+-- AI Usage Tracking table (stores Gemini API usage metrics)
+CREATE TABLE IF NOT EXISTS ai_usage (
+  id SERIAL PRIMARY KEY,
+  user_email VARCHAR(255) NOT NULL REFERENCES users(email) ON DELETE CASCADE,
+  operation_type VARCHAR(100) NOT NULL, -- 'parse_resume', 'search_jobs', 'generate_email', 'analyze_emails', 'smart_reply'
+  input_tokens INTEGER DEFAULT 0,
+  output_tokens INTEGER DEFAULT 0,
+  total_tokens INTEGER DEFAULT 0,
+  model_used VARCHAR(100),
+  success BOOLEAN DEFAULT true,
+  error_message TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create index on user_email for faster lookups
+CREATE INDEX IF NOT EXISTS idx_ai_usage_user_email ON ai_usage(user_email);
+
+-- Create index on operation_type for filtering
+CREATE INDEX IF NOT EXISTS idx_ai_usage_operation_type ON ai_usage(operation_type);
+
+-- Create index on created_at for date range queries
+CREATE INDEX IF NOT EXISTS idx_ai_usage_created_at ON ai_usage(created_at);
+
 -- Sample queries
 -- SELECT * FROM user_profiles WHERE user_email = 'user@example.com';
 -- SELECT * FROM user_emails WHERE user_email = 'user@example.com' ORDER BY date DESC;
+-- SELECT operation_type, SUM(total_tokens) as total, COUNT(*) as count FROM ai_usage WHERE user_email = 'user@example.com' GROUP BY operation_type;
