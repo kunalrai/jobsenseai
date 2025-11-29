@@ -8,8 +8,8 @@ import { generateEmail, analyzeEmails, generateSmartReply } from '../services/ge
 // --- CONFIGURATION FOR REAL GMAIL API ---
 // To use real Gmail, create a project in Google Cloud Console, enable Gmail API,
 // and create an OAuth 2.0 Client ID for a Web Application.
-const CLIENT_ID = 'YOUR_CLIENT_ID'; // TODO: Replace with your Client ID
-const API_KEY = 'YOUR_API_KEY';     // TODO: Replace with your API Key
+// Set VITE_GOOGLE_CLIENT_ID in your .env file
+const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || 'YOUR_CLIENT_ID';
 const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/gmail/v1/rest';
 const SCOPES = 'https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.compose';
 
@@ -117,9 +117,8 @@ export const EmailSection: React.FC<EmailSectionProps> = ({ profile }) => {
 
   // --- REAL GMAIL API SETUP ---
   useEffect(() => {
-    // Only attempt to load scripts if we have valid keys (basic check)
-    // In a real implementation, you'd load this unconditionally.
-    if (CLIENT_ID === 'YOUR_CLIENT_ID' || API_KEY === 'YOUR_API_KEY') {
+    // Only attempt to load scripts if we have valid CLIENT_ID
+    if (CLIENT_ID === 'YOUR_CLIENT_ID') {
       console.log("Using Mock Gmail Mode (Configure CLIENT_ID to use real API)");
       return;
     }
@@ -131,11 +130,17 @@ export const EmailSection: React.FC<EmailSectionProps> = ({ profile }) => {
     script1.onload = () => {
         const gapi = (window as any).gapi;
         gapi.load('client', async () => {
-            await gapi.client.init({
-                apiKey: API_KEY,
-                discoveryDocs: [DISCOVERY_DOC],
-            });
-            setGapiInited(true);
+            try {
+                // For OAuth flow, we don't need API key - just load the discovery doc
+                await gapi.client.init({
+                    discoveryDocs: [DISCOVERY_DOC],
+                });
+                setGapiInited(true);
+                console.log("Gmail API client initialized successfully (OAuth mode)");
+            } catch (error) {
+                console.error("Failed to initialize Gmail API client:", error);
+                console.warn("Falling back to Mock Mode.");
+            }
         });
     };
     document.body.appendChild(script1);
@@ -162,6 +167,22 @@ export const EmailSection: React.FC<EmailSectionProps> = ({ profile }) => {
     };
   }, []);
 
+  // --- CHECK FOR STORED TOKEN ON MOUNT ---
+  useEffect(() => {
+    const gapi = (window as any).gapi;
+    if (gapi && gapi.client) {
+      const token = gapi.client.getToken();
+      if (token) {
+        // Token exists, restore session
+        setIsConnected(true);
+        setIsRealApi(true);
+        const storedEmail = localStorage.getItem('gmail_user_email');
+        setUserEmail(storedEmail || 'Connected User');
+        console.log('Gmail session restored from token');
+      }
+    }
+  }, [gapiInited]);
+
   // --- MOCK LISTENER ---
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -170,6 +191,7 @@ export const EmailSection: React.FC<EmailSectionProps> = ({ profile }) => {
         setTimeout(() => {
             setIsConnected(true);
             setUserEmail(event.data.email);
+            localStorage.setItem('gmail_user_email', event.data.email);
             setIsScanning(false);
             setIsRealApi(false);
         }, 800);
@@ -210,9 +232,22 @@ export const EmailSection: React.FC<EmailSectionProps> = ({ profile }) => {
         }
         setIsConnected(true);
         setIsRealApi(true);
-        // Get profile info to show email
-        // We can skip profile call for now and just set "Connected User" or fetch from People API
-        setUserEmail("Connected User"); 
+
+        // Try to get user email from Google
+        try {
+            const gapi = (window as any).gapi;
+            const userInfo = await gapi.client.request({
+                path: 'https://www.googleapis.com/oauth2/v2/userinfo'
+            });
+            const email = userInfo.result.email;
+            setUserEmail(email);
+            localStorage.setItem('gmail_user_email', email);
+        } catch (e) {
+            console.warn('Could not fetch user email, using fallback');
+            setUserEmail("Connected User");
+            localStorage.setItem('gmail_user_email', "Connected User");
+        }
+
         await scanInbox();
     };
 
@@ -229,6 +264,10 @@ export const EmailSection: React.FC<EmailSectionProps> = ({ profile }) => {
       setUserEmail(null);
       setEmails([]);
       setSelectedEmail(null);
+
+      // Clear localStorage
+      localStorage.removeItem('gmail_user_email');
+
       const gapi = (window as any).gapi;
       if (gapi && gapi.client) {
         const token = gapi.client.getToken();
