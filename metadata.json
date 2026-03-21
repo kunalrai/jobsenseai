@@ -1,0 +1,5 @@
+{
+  "name": "JobSense AI",
+  "description": "An intelligent career assistant that finds jobs using real-time search, analyzes email communications, and drafts professional responses and CVs on your behalf.",
+  "requestFramePermissions": []
+}
