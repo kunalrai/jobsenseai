@@ -4,7 +4,9 @@ import { ClerkProvider, useAuth } from '@clerk/clerk-react';
 import { ConvexProviderWithAuth, ConvexReactClient } from 'convex/react';
 import App from './App';
 
-const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string);
+const convex = new ConvexReactClient(
+  import.meta.env.VITE_CONVEX_URL || 'https://energized-pika-604.convex.cloud'
+);
 
 // Map Clerk's useAuth to Convex's expected shape
 function useAuthFromClerk() {
