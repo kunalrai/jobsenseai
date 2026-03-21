@@ -4,7 +4,7 @@ import { api } from '../convex/_generated/api';
 import { Search, MapPin, Building, ExternalLink, Sparkles, Loader2, Mail } from 'lucide-react';
 import { UserProfile, Job } from '../types';
 import { JOB_DATABASE } from '../data/jobDatabase';
-import { SESSION_ID } from '../App';
+
 
 interface JobSearchProps {
   profile: UserProfile;
@@ -43,7 +43,6 @@ export const JobSearch: React.FC<JobSearchProps> = ({ profile }) => {
           skills: profile.skills,
           experienceLevel: profile.experienceLevel,
           query,
-          sessionId: SESSION_ID,
         });
         setJobs([...localMatches, ...(apiJobs as Job[])]);
       } catch (err) {

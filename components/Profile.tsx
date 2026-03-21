@@ -3,7 +3,7 @@ import { useMutation, useAction } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { User, Briefcase, FileText, Plus, X, Sparkles, Loader2, Upload, FileCheck, Eye, GraduationCap, Building2, Calendar, FolderGit2, Link } from 'lucide-react';
 import { UserProfile } from '../types';
-import { SESSION_ID } from '../App';
+
 
 interface ProfileProps {
   profile: UserProfile;
@@ -36,7 +36,6 @@ export const Profile: React.FC<ProfileProps> = ({ profile, onViewResume }) => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
       upsertProfile({
-        sessionId: SESSION_ID,
         name: updated.name,
         skills: updated.skills,
         experienceLevel: updated.experienceLevel,
@@ -107,7 +106,7 @@ export const Profile: React.FC<ProfileProps> = ({ profile, onViewResume }) => {
       const { storageId } = await uploadResponse.json();
 
       // 3. Save the storageId + name on the user record
-      await setResume({ sessionId: SESSION_ID, resumeName: file.name, resumeStorageId: storageId });
+      await setResume({ resumeName: file.name, resumeStorageId: storageId });
 
       // 4. Parse the resume via Convex action (Gemini on the server)
       const extracted = await parseUploadedResume({ storageId });
@@ -126,7 +125,6 @@ export const Profile: React.FC<ProfileProps> = ({ profile, onViewResume }) => {
       };
       setLocal(merged);
       await upsertProfile({
-        sessionId: SESSION_ID,
         name: merged.name,
         skills: merged.skills,
         experienceLevel: merged.experienceLevel,
@@ -144,7 +142,7 @@ export const Profile: React.FC<ProfileProps> = ({ profile, onViewResume }) => {
   };
 
   const handleClearResume = () => {
-    clearResume({ sessionId: SESSION_ID });
+    clearResume({});
     update({ resumeName: undefined, resumeUrl: undefined });
   };
 

@@ -1,6 +1,6 @@
-import { action, mutation, query } from "./_generated/server";
+import { action, internalMutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { api } from "./_generated/api";
+import { internal } from "./_generated/api";
 
 export const generateDraft = action({
   args: {
@@ -11,9 +11,11 @@ export const generateDraft = action({
     resumeSummary: v.string(),
     hasResume: v.boolean(),
     tone: v.string(),
-    sessionId: v.string(),
   },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) throw new Error("API Key is missing");
 
@@ -61,8 +63,8 @@ export const generateDraft = action({
 
     const data = JSON.parse(text.replace(/```json\n?|\n?```/g, "").trim());
 
-    await ctx.runMutation(api.emails.saveDraft, {
-      sessionId: args.sessionId,
+    await ctx.runMutation(internal.emails.saveDraft, {
+      tokenIdentifier: identity.tokenIdentifier,
       subject: data.subject,
       body: data.body,
       tone: args.tone,
@@ -72,9 +74,9 @@ export const generateDraft = action({
   },
 });
 
-export const saveDraft = mutation({
+export const saveDraft = internalMutation({
   args: {
-    sessionId: v.string(),
+    tokenIdentifier: v.string(),
     subject: v.string(),
     body: v.string(),
     tone: v.string(),
@@ -85,12 +87,14 @@ export const saveDraft = mutation({
 });
 
 export const getDraftCount = query({
-  args: { sessionId: v.string() },
-  handler: async (ctx, { sessionId }) => {
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return 0;
     const drafts = await ctx.db
       .query("emailDrafts")
-      .withIndex("by_session", (q) => q.eq("sessionId", sessionId))
-      .collect();
+      .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
+      .take(1000);
     return drafts.length;
   },
 });
@@ -101,6 +105,9 @@ export const scanInbox = action({
     experienceLevel: v.string(),
   },
   handler: async (ctx, { skills, experienceLevel }) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       return [
@@ -167,10 +174,7 @@ export const scanInbox = action({
                 snippet: { type: Type.STRING },
                 fullBody: { type: Type.STRING },
                 date: { type: Type.STRING },
-                priority: {
-                  type: Type.STRING,
-                  enum: ["High", "Medium", "Low"],
-                },
+                priority: { type: Type.STRING, enum: ["High", "Medium", "Low"] },
               },
               required: ["id", "sender", "subject", "fullBody", "date", "priority"],
             },

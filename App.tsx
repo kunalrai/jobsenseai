@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useUser } from '@clerk/clerk-react';
 import { useQuery } from 'convex/react';
 import { api } from './convex/_generated/api';
 import { Layout } from './components/Layout';
@@ -6,20 +7,9 @@ import { JobSearch } from './components/JobSearch';
 import { EmailAssistant } from './components/EmailAssistant';
 import { Profile } from './components/Profile';
 import { Dashboard } from './components/Dashboard';
+import { SignInPage } from './components/SignInPage';
 import { AppView, UserProfile } from './types';
 import { X, Loader2 } from 'lucide-react';
-
-// Stable session ID persisted in localStorage — no auth required
-function getSessionId(): string {
-  let id = localStorage.getItem('jobsense_session_id');
-  if (!id) {
-    id = crypto.randomUUID();
-    localStorage.setItem('jobsense_session_id', id);
-  }
-  return id;
-}
-
-export const SESSION_ID = getSessionId();
 
 const EMPTY_PROFILE: UserProfile = {
   name: '',
@@ -32,7 +22,7 @@ const EMPTY_PROFILE: UserProfile = {
 };
 
 const ResumeModal = ({ url, onClose }: { url: string; onClose: () => void }) => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4">
     <div className="bg-white w-full max-w-5xl h-[85vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
       <div className="flex justify-between items-center px-6 py-4 border-b border-slate-200 bg-white">
         <h3 className="font-bold text-slate-700 text-lg">Resume Preview</h3>
@@ -43,7 +33,7 @@ const ResumeModal = ({ url, onClose }: { url: string; onClose: () => void }) => 
           <X className="w-6 h-6" />
         </button>
       </div>
-      <div className="flex-1 bg-slate-100 relative">
+      <div className="flex-1 bg-slate-100">
         <iframe src={url} className="w-full h-full border-none" title="Resume Preview" />
       </div>
     </div>
@@ -51,13 +41,26 @@ const ResumeModal = ({ url, onClose }: { url: string; onClose: () => void }) => 
 );
 
 function App() {
+  const { isLoaded, isSignedIn } = useUser();
   const [currentView, setCurrentView] = useState<AppView>(AppView.DASHBOARD);
   const [isResumeOpen, setIsResumeOpen] = useState(false);
 
-  const profileData = useQuery(api.users.getProfile, { sessionId: SESSION_ID });
-  const resumeUrl = useQuery(api.users.getResumeUrl, { sessionId: SESSION_ID });
+  const profileData = useQuery(api.users.getProfile);
+  const resumeUrl = useQuery(api.users.getResumeUrl);
 
-  // Show spinner while Convex is loading
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!isSignedIn) {
+    return <SignInPage />;
+  }
+
+  // Still loading profile from Convex
   if (profileData === undefined) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -66,8 +69,6 @@ function App() {
     );
   }
 
-  // Merge the Convex storage URL into the profile object so child components
-  // can still read profile.resumeUrl without changes
   const profile: UserProfile = {
     ...EMPTY_PROFILE,
     ...profileData,

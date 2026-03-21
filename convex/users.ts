@@ -1,4 +1,4 @@
-import { mutation, query } from "./_generated/server";
+import { mutation, query, MutationCtx, QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
 
 const profileFields = {
@@ -35,28 +35,37 @@ const profileFields = {
   resumeName: v.optional(v.string()),
 };
 
+async function requireAuth(ctx: QueryCtx | MutationCtx) {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) throw new Error("Not authenticated");
+  return identity;
+}
+
 export const getProfile = query({
-  args: { sessionId: v.string() },
-  handler: async (ctx, { sessionId }) => {
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return null;
     return await ctx.db
       .query("users")
-      .withIndex("by_session", (q) => q.eq("sessionId", sessionId))
-      .first();
+      .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
+      .unique();
   },
 });
 
 export const upsertProfile = mutation({
-  args: { sessionId: v.string(), ...profileFields },
-  handler: async (ctx, { sessionId, ...data }) => {
+  args: profileFields,
+  handler: async (ctx, data) => {
+    const identity = await requireAuth(ctx);
     const existing = await ctx.db
       .query("users")
-      .withIndex("by_session", (q) => q.eq("sessionId", sessionId))
-      .first();
+      .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
+      .unique();
 
     if (existing) {
       await ctx.db.patch(existing._id, data);
     } else {
-      await ctx.db.insert("users", { sessionId, ...data });
+      await ctx.db.insert("users", { tokenIdentifier: identity.tokenIdentifier, ...data });
     }
   },
 });
@@ -64,21 +73,22 @@ export const upsertProfile = mutation({
 export const generateUploadUrl = mutation({
   args: {},
   handler: async (ctx) => {
+    await requireAuth(ctx);
     return await ctx.storage.generateUploadUrl();
   },
 });
 
 export const setResume = mutation({
   args: {
-    sessionId: v.string(),
     resumeName: v.string(),
     resumeStorageId: v.id("_storage"),
   },
-  handler: async (ctx, { sessionId, resumeName, resumeStorageId }) => {
+  handler: async (ctx, { resumeName, resumeStorageId }) => {
+    const identity = await requireAuth(ctx);
     const existing = await ctx.db
       .query("users")
-      .withIndex("by_session", (q) => q.eq("sessionId", sessionId))
-      .first();
+      .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
+      .unique();
 
     if (existing) {
       await ctx.db.patch(existing._id, { resumeName, resumeStorageId });
@@ -87,29 +97,29 @@ export const setResume = mutation({
 });
 
 export const clearResume = mutation({
-  args: { sessionId: v.string() },
-  handler: async (ctx, { sessionId }) => {
+  args: {},
+  handler: async (ctx) => {
+    const identity = await requireAuth(ctx);
     const existing = await ctx.db
       .query("users")
-      .withIndex("by_session", (q) => q.eq("sessionId", sessionId))
-      .first();
+      .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
+      .unique();
 
     if (existing) {
-      await ctx.db.patch(existing._id, {
-        resumeName: undefined,
-        resumeStorageId: undefined,
-      });
+      await ctx.db.patch(existing._id, { resumeName: undefined, resumeStorageId: undefined });
     }
   },
 });
 
 export const getResumeUrl = query({
-  args: { sessionId: v.string() },
-  handler: async (ctx, { sessionId }) => {
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return null;
     const user = await ctx.db
       .query("users")
-      .withIndex("by_session", (q) => q.eq("sessionId", sessionId))
-      .first();
+      .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
+      .unique();
 
     if (!user?.resumeStorageId) return null;
     return await ctx.storage.getUrl(user.resumeStorageId);

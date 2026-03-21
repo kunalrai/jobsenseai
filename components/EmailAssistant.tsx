@@ -3,7 +3,7 @@ import { useAction } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { Mail, Send, Wand2, Copy, CheckCircle2, RotateCcw, Inbox, Loader2, Paperclip, ChevronRight } from 'lucide-react';
 import { UserProfile, EmailDraft, EmailMessage } from '../types';
-import { SESSION_ID } from '../App';
+
 
 interface EmailAssistantProps {
   profile: UserProfile;
@@ -59,7 +59,6 @@ export const EmailAssistant: React.FC<EmailAssistantProps> = ({ profile, onViewR
         resumeSummary: profile.resumeSummary,
         hasResume: !!profile.resumeName,
         tone,
-        sessionId: SESSION_ID,
       });
       setDraft(result as EmailDraft);
       setCopied(false);

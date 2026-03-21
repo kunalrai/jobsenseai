@@ -3,7 +3,7 @@ import { v } from "convex/values";
 
 export default defineSchema({
   users: defineTable({
-    sessionId: v.string(),
+    tokenIdentifier: v.string(),
     name: v.string(),
     skills: v.array(v.string()),
     experienceLevel: v.string(),
@@ -36,20 +36,20 @@ export default defineSchema({
     ),
     resumeName: v.optional(v.string()),
     resumeStorageId: v.optional(v.id("_storage")),
-  }).index("by_session", ["sessionId"]),
+  }).index("by_token", ["tokenIdentifier"]),
 
   jobSearches: defineTable({
-    sessionId: v.string(),
+    tokenIdentifier: v.string(),
     query: v.string(),
     resultCount: v.number(),
     searchedAt: v.number(),
-  }).index("by_session", ["sessionId"]),
+  }).index("by_token", ["tokenIdentifier"]),
 
   emailDrafts: defineTable({
-    sessionId: v.string(),
+    tokenIdentifier: v.string(),
     subject: v.string(),
     body: v.string(),
     tone: v.string(),
     createdAt: v.number(),
-  }).index("by_session", ["sessionId"]),
+  }).index("by_token", ["tokenIdentifier"]),
 });

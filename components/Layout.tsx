@@ -1,4 +1,5 @@
 import React, { ReactNode } from 'react';
+import { UserButton } from '@clerk/clerk-react';
 import { AppView } from '../types';
 import { Briefcase, Mail, User, Search, Menu, X, Zap } from 'lucide-react';
 
@@ -49,14 +50,9 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, onChangeV
           <NavItem view={AppView.PROFILE} icon={User} label="My Profile" />
         </nav>
 
-        <div className="p-4 border-t border-slate-100">
-          <div className="bg-slate-50 rounded-lg p-4">
-            <p className="text-xs text-slate-500 mb-2">Credits Remaining</p>
-            <div className="w-full bg-slate-200 rounded-full h-2 mb-2">
-              <div className="bg-indigo-500 h-2 rounded-full w-3/4"></div>
-            </div>
-            <p className="text-xs font-semibold text-slate-700">Unlimited (Demo)</p>
-          </div>
+        <div className="p-4 border-t border-slate-100 flex items-center space-x-3">
+          <UserButton afterSignOutUrl="/" />
+          <span className="text-sm text-slate-500">Account</span>
         </div>
       </div>
 

@@ -1,15 +1,17 @@
-import { action, mutation, query } from "./_generated/server";
+import { action, internalMutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { api } from "./_generated/api";
+import { internal } from "./_generated/api";
 
 export const searchJobs = action({
   args: {
     skills: v.array(v.string()),
     experienceLevel: v.string(),
     query: v.string(),
-    sessionId: v.string(),
   },
-  handler: async (ctx, { skills, experienceLevel, query, sessionId }) => {
+  handler: async (ctx, { skills, experienceLevel, query }) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) return [];
 
@@ -53,8 +55,8 @@ export const searchJobs = action({
         matchScore: 80,
       }));
 
-      await ctx.runMutation(api.jobs.saveSearch, {
-        sessionId,
+      await ctx.runMutation(internal.jobs.saveSearch, {
+        tokenIdentifier: identity.tokenIdentifier,
         query,
         resultCount: jobs.length,
       });
@@ -67,9 +69,9 @@ export const searchJobs = action({
   },
 });
 
-export const saveSearch = mutation({
+export const saveSearch = internalMutation({
   args: {
-    sessionId: v.string(),
+    tokenIdentifier: v.string(),
     query: v.string(),
     resultCount: v.number(),
   },
@@ -79,12 +81,14 @@ export const saveSearch = mutation({
 });
 
 export const getSearchCount = query({
-  args: { sessionId: v.string() },
-  handler: async (ctx, { sessionId }) => {
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return 0;
     const searches = await ctx.db
       .query("jobSearches")
-      .withIndex("by_session", (q) => q.eq("sessionId", sessionId))
-      .collect();
+      .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
+      .take(1000);
     return searches.reduce((sum, s) => sum + s.resultCount, 0);
   },
 });
