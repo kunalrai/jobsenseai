@@ -52,4 +52,16 @@ export default defineSchema({
     tone: v.string(),
     createdAt: v.number(),
   }).index("by_token", ["tokenIdentifier"]),
+
+  gmailEmails: defineTable({
+    tokenIdentifier: v.string(),
+    gmailId: v.string(),
+    from: v.string(),
+    subject: v.string(),
+    snippet: v.string(),
+    body: v.string(),
+    date: v.string(),
+    priority: v.string(),
+    fetchedAt: v.number(),
+  }).index("by_token", ["tokenIdentifier"]),
 });

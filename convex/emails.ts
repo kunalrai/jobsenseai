@@ -2,6 +2,32 @@ import { action, internalMutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 
+function extractBody(payload: any): string {
+  if (!payload) return "";
+  if (payload.body?.data) {
+    return Buffer.from(payload.body.data, "base64").toString("utf-8");
+  }
+  if (payload.parts) {
+    for (const part of payload.parts) {
+      if (part.mimeType === "text/plain" && part.body?.data) {
+        return Buffer.from(part.body.data, "base64").toString("utf-8");
+      }
+    }
+    for (const part of payload.parts) {
+      const result = extractBody(part);
+      if (result) return result;
+    }
+  }
+  return "";
+}
+
+function detectPriority(subject: string, snippet: string): string {
+  const text = (subject + " " + snippet).toLowerCase();
+  if (text.includes("interview") || text.includes("offer") || text.includes("selected")) return "High";
+  if (text.includes("application") || text.includes("recruiter") || text.includes("opportunity")) return "Medium";
+  return "Low";
+}
+
 export const generateDraft = action({
   args: {
     incomingEmailText: v.string(),
@@ -83,6 +109,86 @@ export const saveDraft = internalMutation({
   },
   handler: async (ctx, args) => {
     await ctx.db.insert("emailDrafts", { ...args, createdAt: Date.now() });
+  },
+});
+
+export const fetchGmailEmails = action({
+  args: { accessToken: v.string() },
+  handler: async (ctx, { accessToken }) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const listRes = await fetch(
+      "https://gmail.googleapis.com/gmail/v1/users/me/messages?q=job+OR+interview+OR+offer+OR+application+OR+recruiter+OR+hiring&maxResults=10",
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    const listData = await listRes.json();
+    const messages: { id: string }[] = listData.messages || [];
+
+    const emails: { gmailId: string; from: string; subject: string; snippet: string; body: string; date: string; priority: string }[] = [];
+
+    for (const msg of messages.slice(0, 5)) {
+      const msgRes = await fetch(
+        `https://gmail.googleapis.com/gmail/v1/users/me/messages/${msg.id}?format=full`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      );
+      const msgData = await msgRes.json();
+      const headers: { name: string; value: string }[] = msgData.payload?.headers || [];
+      const from = headers.find((h) => h.name === "From")?.value ?? "";
+      const subject = headers.find((h) => h.name === "Subject")?.value ?? "";
+      const date = headers.find((h) => h.name === "Date")?.value ?? "";
+      const snippet = msgData.snippet ?? "";
+      const body = extractBody(msgData.payload);
+      const priority = detectPriority(subject, snippet);
+      emails.push({ gmailId: msg.id, from, subject, snippet, body, date, priority });
+    }
+
+    await ctx.runMutation(internal.emails.saveGmailEmails, {
+      tokenIdentifier: identity.tokenIdentifier,
+      emails,
+    });
+
+    return emails;
+  },
+});
+
+export const saveGmailEmails = internalMutation({
+  args: {
+    tokenIdentifier: v.string(),
+    emails: v.array(v.object({
+      gmailId: v.string(),
+      from: v.string(),
+      subject: v.string(),
+      snippet: v.string(),
+      body: v.string(),
+      date: v.string(),
+      priority: v.string(),
+    })),
+  },
+  handler: async (ctx, { tokenIdentifier, emails }) => {
+    const existing = await ctx.db
+      .query("gmailEmails")
+      .withIndex("by_token", (q) => q.eq("tokenIdentifier", tokenIdentifier))
+      .collect();
+    for (const doc of existing) {
+      await ctx.db.delete(doc._id);
+    }
+    const fetchedAt = Date.now();
+    for (const email of emails) {
+      await ctx.db.insert("gmailEmails", { ...email, tokenIdentifier, fetchedAt });
+    }
+  },
+});
+
+export const getGmailEmails = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return [];
+    return await ctx.db
+      .query("gmailEmails")
+      .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
+      .collect();
   },
 });
 
