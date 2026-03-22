@@ -6,6 +6,33 @@ import { UserProfile, EmailDraft } from '../types';
 
 declare const google: any;
 
+// Strip HTML tags (including style/script content) and decode entities to plain text
+function htmlToPlainText(html: string): string {
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  div.querySelectorAll('style, script, img, [style*="display:none"], [style*="display: none"]').forEach(el => el.remove());
+  // Convert block-level elements and <br> to newlines before extracting text
+  div.querySelectorAll('br').forEach(el => el.replaceWith('\n'));
+  div.querySelectorAll('p, div, tr, li, h1, h2, h3, h4, h5, h6, blockquote').forEach(el => {
+    el.prepend('\n');
+    el.append('\n');
+  });
+  div.querySelectorAll('li').forEach(el => el.prepend('• '));
+  div.querySelectorAll('td, th').forEach(el => el.append('  '));
+  return (div.textContent || div.innerText || '')
+    .replace(/\t/g, ' ')
+    .replace(/ {2,}/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+// Decode HTML entities only (no tag stripping) for snippets
+function decodeEntities(text: string): string {
+  const div = document.createElement('div');
+  div.innerHTML = text;
+  return div.textContent || div.innerText || text;
+}
+
 interface GmailEmail {
   _id: string;
   gmailId: string;
@@ -81,7 +108,8 @@ export const EmailAssistant: React.FC<EmailAssistantProps> = ({ profile, onViewR
   };
 
   const handleAnalyzeEmail = (email: GmailEmail) => {
-    setIncomingText(email.body || email.snippet);
+    const plain = email.body ? htmlToPlainText(email.body) : decodeEntities(email.snippet);
+    setIncomingText(plain);
     setActiveTab('compose');
     setDraft(null);
   };
@@ -125,7 +153,7 @@ export const EmailAssistant: React.FC<EmailAssistantProps> = ({ profile, onViewR
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-[calc(100vh-140px)]">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
       {/* Left Panel */}
       <div className="flex flex-col bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
 
@@ -148,9 +176,9 @@ export const EmailAssistant: React.FC<EmailAssistantProps> = ({ profile, onViewR
         </div>
 
         {activeTab === 'inbox' ? (
-          <div className="flex-1 overflow-auto p-4">
+          <div className="p-4">
             {fetching || gmailEmails === null ? (
-              <div className="h-full flex flex-col items-center justify-center space-y-4">
+              <div className="flex flex-col items-center justify-center space-y-4 py-20">
                 <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
                 <p className="text-sm text-slate-500 font-medium">{fetching ? 'Reading your Gmail for job emails...' : 'Loading...'}</p>
               </div>
@@ -176,7 +204,7 @@ export const EmailAssistant: React.FC<EmailAssistantProps> = ({ profile, onViewR
                         <span className="text-xs text-slate-400 whitespace-nowrap">{new Date(email.date).toLocaleDateString()}</span>
                       </div>
                       <h5 className="text-sm font-medium text-slate-800 mb-1">{email.subject}</h5>
-                      <p className="text-xs text-slate-500 line-clamp-2">{email.snippet}</p>
+                      <p className="text-xs text-slate-500 line-clamp-2">{decodeEntities(email.snippet)}</p>
                       <div className="mt-3 flex items-center text-indigo-600 text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity">
                         Analyze & Reply <ChevronRight className="w-3 h-3 ml-1" />
                       </div>
@@ -185,7 +213,7 @@ export const EmailAssistant: React.FC<EmailAssistantProps> = ({ profile, onViewR
                 ))}
               </div>
             ) : profile.gmailConnectedAt ? (
-              <div className="h-full flex flex-col items-center justify-center text-center p-6">
+              <div className="flex flex-col items-center justify-center text-center py-16 px-6">
                 <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-slate-400">
                   <Inbox className="w-8 h-8" />
                 </div>
@@ -202,7 +230,7 @@ export const EmailAssistant: React.FC<EmailAssistantProps> = ({ profile, onViewR
                 </button>
               </div>
             ) : (
-              <div className="h-full flex flex-col items-center justify-center text-center p-6">
+              <div className="flex flex-col items-center justify-center text-center py-16 px-6">
                 <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-slate-400">
                   <Mail className="w-8 h-8" />
                 </div>
@@ -232,7 +260,7 @@ export const EmailAssistant: React.FC<EmailAssistantProps> = ({ profile, onViewR
               </button>
             </div>
             <textarea
-              className="flex-1 p-5 resize-none focus:outline-none text-slate-700 leading-relaxed text-sm bg-white"
+              className="w-full min-h-[280px] p-5 resize-y focus:outline-none text-slate-700 leading-relaxed text-sm bg-white"
               placeholder="Paste the email from the recruiter or hiring manager here..."
               value={incomingText}
               onChange={(e) => setIncomingText(e.target.value)}
@@ -284,7 +312,7 @@ export const EmailAssistant: React.FC<EmailAssistantProps> = ({ profile, onViewR
       </div>
 
       {/* Right Panel: Output */}
-      <div className="flex flex-col bg-slate-900 rounded-2xl shadow-xl overflow-hidden text-slate-300 relative">
+      <div className="flex flex-col bg-slate-900 rounded-2xl shadow-xl overflow-hidden text-slate-300 relative min-h-[500px]">
         {sentSuccess && (
           <div className="absolute inset-0 z-10 bg-slate-900/90 flex flex-col items-center justify-center backdrop-blur-sm animate-fade-in">
             <div className="bg-green-500 rounded-full p-4 mb-4 shadow-lg shadow-green-500/20">
@@ -311,7 +339,7 @@ export const EmailAssistant: React.FC<EmailAssistantProps> = ({ profile, onViewR
           )}
         </div>
 
-        <div className="flex-1 p-6 overflow-auto">
+        <div className="p-6">
           {draft ? (
             <div className="space-y-6 animate-fade-in">
               <div className="space-y-1">
@@ -346,7 +374,7 @@ export const EmailAssistant: React.FC<EmailAssistantProps> = ({ profile, onViewR
               </div>
             </div>
           ) : (
-            <div className="h-full flex flex-col items-center justify-center text-slate-600 p-8 text-center">
+            <div className="flex flex-col items-center justify-center text-slate-600 py-20 text-center">
               <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mb-4">
                 <Wand2 className="w-8 h-8 text-slate-600" />
               </div>
