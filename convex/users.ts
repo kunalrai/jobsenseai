@@ -53,6 +53,29 @@ export const getProfile = query({
   },
 });
 
+export const ensureUser = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await requireAuth(ctx);
+    const existing = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
+      .unique();
+    if (!existing) {
+      await ctx.db.insert("users", {
+        tokenIdentifier: identity.tokenIdentifier,
+        name: identity.name ?? "",
+        skills: [],
+        experienceLevel: "",
+        resumeSummary: "",
+        workExperience: [],
+        education: [],
+        projects: [],
+      });
+    }
+  },
+});
+
 export const upsertProfile = mutation({
   args: profileFields,
   handler: async (ctx, data) => {

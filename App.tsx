@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useUser } from '@clerk/clerk-react';
-import { useQuery } from 'convex/react';
+import { useQuery, useMutation } from 'convex/react';
 import { api } from './convex/_generated/api';
 import { Layout } from './components/Layout';
 import { JobSearch } from './components/JobSearch';
@@ -47,6 +47,13 @@ function App() {
 
   const profileData = useQuery(api.users.getProfile);
   const resumeUrl = useQuery(api.users.getResumeUrl);
+  const ensureUser = useMutation(api.users.ensureUser);
+
+  useEffect(() => {
+    if (isSignedIn && profileData === null) {
+      ensureUser();
+    }
+  }, [isSignedIn, profileData]);
 
   if (!isLoaded) {
     return (
