@@ -2,15 +2,21 @@ import { action, internalMutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 
+function decodeBase64Url(data: string): string {
+  // Gmail uses base64url encoding (- instead of +, _ instead of /)
+  const base64 = data.replace(/-/g, "+").replace(/_/g, "/");
+  return atob(base64);
+}
+
 function extractBody(payload: any): string {
   if (!payload) return "";
   if (payload.body?.data) {
-    return Buffer.from(payload.body.data, "base64").toString("utf-8");
+    return decodeBase64Url(payload.body.data);
   }
   if (payload.parts) {
     for (const part of payload.parts) {
       if (part.mimeType === "text/plain" && part.body?.data) {
-        return Buffer.from(part.body.data, "base64").toString("utf-8");
+        return decodeBase64Url(part.body.data);
       }
     }
     for (const part of payload.parts) {
