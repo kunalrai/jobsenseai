@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAction, useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { Mail, Send, Wand2, Copy, CheckCircle2, RotateCcw, Inbox, Loader2, Paperclip, ChevronRight } from 'lucide-react';
@@ -35,7 +35,22 @@ export const EmailAssistant: React.FC<EmailAssistantProps> = ({ profile, onViewR
 
   const generateDraft = useAction(api.emails.generateDraft);
   const fetchGmailEmails = useAction(api.emails.fetchGmailEmails);
-  const gmailEmails = useQuery(api.emails.getGmailEmails) as GmailEmail[] | undefined;
+  const gmailEmailsQuery = useQuery(api.emails.getGmailEmails) as GmailEmail[] | null | undefined;
+
+  // Stabilise display: only update when we get a real authenticated result.
+  // - undefined = query still in flight (initial load)
+  // - null      = auth momentarily unavailable (Convex reconnect / JWT refresh)
+  // - []        = authenticated, genuinely no emails
+  // - [...]     = authenticated, emails present
+  // We ignore undefined and null so the inbox never flashes during reconnects.
+  const [displayEmails, setDisplayEmails] = useState<GmailEmail[] | null>(null);
+  useEffect(() => {
+    if (gmailEmailsQuery !== undefined && gmailEmailsQuery !== null) {
+      setDisplayEmails(gmailEmailsQuery);
+    }
+  }, [gmailEmailsQuery]);
+
+  const gmailEmails = displayEmails;
 
   const handleConnectGmail = () => {
     if (!import.meta.env.VITE_GOOGLE_CLIENT_ID) {
@@ -134,12 +149,12 @@ export const EmailAssistant: React.FC<EmailAssistantProps> = ({ profile, onViewR
 
         {activeTab === 'inbox' ? (
           <div className="flex-1 overflow-auto p-4">
-            {fetching ? (
+            {fetching || gmailEmails === null ? (
               <div className="h-full flex flex-col items-center justify-center space-y-4">
                 <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
-                <p className="text-sm text-slate-500 font-medium">Reading your Gmail for job emails...</p>
+                <p className="text-sm text-slate-500 font-medium">{fetching ? 'Reading your Gmail for job emails...' : 'Loading...'}</p>
               </div>
-            ) : gmailEmails && gmailEmails.length > 0 ? (
+            ) : gmailEmails.length > 0 ? (
               <div className="space-y-3">
                 <div className="flex justify-between items-center mb-2 px-1">
                   <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Top {gmailEmails.length} job emails</span>
@@ -147,6 +162,7 @@ export const EmailAssistant: React.FC<EmailAssistantProps> = ({ profile, onViewR
                     <RotateCcw className="w-3 h-3 mr-1" /> Refresh
                   </button>
                 </div>
+
                 {gmailEmails.map(email => (
                   <div
                     key={email._id}
@@ -167,6 +183,23 @@ export const EmailAssistant: React.FC<EmailAssistantProps> = ({ profile, onViewR
                     </div>
                   </div>
                 ))}
+              </div>
+            ) : profile.gmailConnectedAt ? (
+              <div className="h-full flex flex-col items-center justify-center text-center p-6">
+                <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-slate-400">
+                  <Inbox className="w-8 h-8" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-800 mb-2">No job emails found</h3>
+                <p className="text-sm text-slate-500 mb-6 max-w-xs">
+                  No job-related emails were found in your Gmail. Try refreshing or check back later.
+                </p>
+                {gmailError && <p className="text-xs text-red-500 mb-3">{gmailError}</p>}
+                <button
+                  onClick={handleConnectGmail}
+                  className="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-medium shadow-md hover:bg-indigo-700 transition-all flex items-center"
+                >
+                  <RotateCcw className="w-4 h-4 mr-2" /> Refresh Gmail
+                </button>
               </div>
             ) : (
               <div className="h-full flex flex-col items-center justify-center text-center p-6">

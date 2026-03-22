@@ -36,6 +36,7 @@ export default defineSchema({
     ),
     resumeName: v.optional(v.string()),
     resumeStorageId: v.optional(v.id("_storage")),
+    gmailConnectedAt: v.optional(v.number()),
   }).index("by_token", ["tokenIdentifier"]),
 
   jobSearches: defineTable({

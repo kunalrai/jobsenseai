@@ -176,12 +176,33 @@ export const saveGmailEmails = internalMutation({
       .query("gmailEmails")
       .withIndex("by_token", (q) => q.eq("tokenIdentifier", tokenIdentifier))
       .collect();
-    for (const doc of existing) {
-      await ctx.db.delete(doc._id);
-    }
+    const existingByGmailId = new Map(existing.map((doc) => [doc.gmailId, doc]));
     const fetchedAt = Date.now();
+    const incomingIds = new Set(emails.map((e) => e.gmailId));
+
+    // Delete emails no longer in the new set
+    for (const doc of existing) {
+      if (!incomingIds.has(doc.gmailId)) {
+        await ctx.db.delete(doc._id);
+      }
+    }
+    // Upsert incoming emails
     for (const email of emails) {
-      await ctx.db.insert("gmailEmails", { ...email, tokenIdentifier, fetchedAt });
+      const existing = existingByGmailId.get(email.gmailId);
+      if (existing) {
+        await ctx.db.patch(existing._id, { ...email, fetchedAt });
+      } else {
+        await ctx.db.insert("gmailEmails", { ...email, tokenIdentifier, fetchedAt });
+      }
+    }
+
+    // Stamp the user record so we know Gmail was connected
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q) => q.eq("tokenIdentifier", tokenIdentifier))
+      .unique();
+    if (user) {
+      await ctx.db.patch(user._id, { gmailConnectedAt: fetchedAt });
     }
   },
 });
@@ -190,7 +211,7 @@ export const getGmailEmails = query({
   args: {},
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity) return [];
+    if (!identity) return null; // null = auth not ready, distinct from [] = no emails
     return await ctx.db
       .query("gmailEmails")
       .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))

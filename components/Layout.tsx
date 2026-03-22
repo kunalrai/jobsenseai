@@ -9,27 +9,34 @@ interface LayoutProps {
   onChangeView: (view: AppView) => void;
 }
 
+interface NavItemProps {
+  view: AppView;
+  icon: any;
+  label: string;
+  isActive: boolean;
+  onClick: () => void;
+}
+
+const NavItem: React.FC<NavItemProps> = ({ icon: Icon, label, isActive, onClick }) => (
+  <button
+    onClick={onClick}
+    className={`flex items-center w-full px-4 py-3 mb-2 rounded-lg transition-all duration-200 group ${
+      isActive
+        ? 'bg-indigo-600 text-white shadow-md'
+        : 'text-slate-500 hover:bg-indigo-50 hover:text-indigo-600'
+    }`}
+  >
+    <Icon className={`w-5 h-5 mr-3 ${isActive ? 'text-indigo-200' : 'text-slate-400 group-hover:text-indigo-500'}`} />
+    <span className="font-medium">{label}</span>
+  </button>
+);
+
 export const Layout: React.FC<LayoutProps> = ({ children, currentView, onChangeView }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
 
-  const NavItem = ({ view, icon: Icon, label }: { view: AppView; icon: any; label: string }) => {
-    const isActive = currentView === view;
-    return (
-      <button
-        onClick={() => {
-          onChangeView(view);
-          setIsMobileMenuOpen(false);
-        }}
-        className={`flex items-center w-full px-4 py-3 mb-2 rounded-lg transition-all duration-200 group ${
-          isActive 
-            ? 'bg-indigo-600 text-white shadow-md' 
-            : 'text-slate-500 hover:bg-indigo-50 hover:text-indigo-600'
-        }`}
-      >
-        <Icon className={`w-5 h-5 mr-3 ${isActive ? 'text-indigo-200' : 'text-slate-400 group-hover:text-indigo-500'}`} />
-        <span className="font-medium">{label}</span>
-      </button>
-    );
+  const handleNav = (view: AppView) => {
+    onChangeView(view);
+    setIsMobileMenuOpen(false);
   };
 
   return (
@@ -44,10 +51,10 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, onChangeV
         </div>
         
         <nav className="flex-1 px-4 py-4">
-          <NavItem view={AppView.DASHBOARD} icon={Menu} label="Dashboard" />
-          <NavItem view={AppView.JOB_SEARCH} icon={Search} label="Find Jobs" />
-          <NavItem view={AppView.EMAIL_ASSISTANT} icon={Mail} label="Email Assistant" />
-          <NavItem view={AppView.PROFILE} icon={User} label="My Profile" />
+          <NavItem view={AppView.DASHBOARD} icon={Menu} label="Dashboard" isActive={currentView === AppView.DASHBOARD} onClick={() => handleNav(AppView.DASHBOARD)} />
+          <NavItem view={AppView.JOB_SEARCH} icon={Search} label="Find Jobs" isActive={currentView === AppView.JOB_SEARCH} onClick={() => handleNav(AppView.JOB_SEARCH)} />
+          <NavItem view={AppView.EMAIL_ASSISTANT} icon={Mail} label="Email Assistant" isActive={currentView === AppView.EMAIL_ASSISTANT} onClick={() => handleNav(AppView.EMAIL_ASSISTANT)} />
+          <NavItem view={AppView.PROFILE} icon={User} label="My Profile" isActive={currentView === AppView.PROFILE} onClick={() => handleNav(AppView.PROFILE)} />
         </nav>
 
         <div className="p-4 border-t border-slate-100 flex items-center space-x-3">
@@ -73,10 +80,10 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, onChangeV
       {isMobileMenuOpen && (
         <div className="fixed inset-0 bg-white z-10 pt-20 px-4 md:hidden">
            <nav className="flex flex-col space-y-2">
-            <NavItem view={AppView.DASHBOARD} icon={Menu} label="Dashboard" />
-            <NavItem view={AppView.JOB_SEARCH} icon={Search} label="Find Jobs" />
-            <NavItem view={AppView.EMAIL_ASSISTANT} icon={Mail} label="Email Assistant" />
-            <NavItem view={AppView.PROFILE} icon={User} label="My Profile" />
+            <NavItem view={AppView.DASHBOARD} icon={Menu} label="Dashboard" isActive={currentView === AppView.DASHBOARD} onClick={() => handleNav(AppView.DASHBOARD)} />
+            <NavItem view={AppView.JOB_SEARCH} icon={Search} label="Find Jobs" isActive={currentView === AppView.JOB_SEARCH} onClick={() => handleNav(AppView.JOB_SEARCH)} />
+            <NavItem view={AppView.EMAIL_ASSISTANT} icon={Mail} label="Email Assistant" isActive={currentView === AppView.EMAIL_ASSISTANT} onClick={() => handleNav(AppView.EMAIL_ASSISTANT)} />
+            <NavItem view={AppView.PROFILE} icon={User} label="My Profile" isActive={currentView === AppView.PROFILE} onClick={() => handleNav(AppView.PROFILE)} />
           </nav>
         </div>
       )}

@@ -42,6 +42,7 @@ export interface UserProfile {
   projects: Project[];
   resumeName?: string;
   resumeUrl?: string;
+  gmailConnectedAt?: number;
 }
 
 export interface EmailDraft {
